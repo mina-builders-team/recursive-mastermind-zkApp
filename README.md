@@ -20,7 +20,7 @@
     - [solutionHash](#solutionhash)
     - [packedGuessHistory](#packedguesshistory)
     - [packedClueHistory](#packedcluehistory)
-    - [rewardFinalizeSlot](#rewardfinalizeslot)
+    - [rewardFinalizeBlock](#rewardfinalizeblock)
   - [Mastermind Methods](#mastermind-methods)
     - [initGame](#initgame)
     - [submitGameProof](#submitgameproof)
@@ -96,9 +96,9 @@ Following the game rules, the [MastermindZkApp](./src/Mastermind.ts) should be d
   - `refereePubKey`: The public key of the referee who will penalize misbehaving players.
   - `rewardAmount`: The amount of tokens to be rewarded to the codeBreaker upon solving the game.
 
-- The initiated game is accepted by another player using the `acceptGame` method, the player becomes a _code breaker_ by depositing a reward equal to the amount deposited by the game master and the game starts. Additionally, a finalize slot is determined to set the maximum end time of the game.
+- The initiated game is accepted by another player using the `acceptGame` method, the player becomes a _code breaker_ by depositing a reward equal to the amount deposited by the game master and the game starts. Additionally, a finalize block is determined to set the maximum end time of the game.
 
-- After the game is started, players continue playing the game until the `finalize slot` is reached, either by using recursion with `StepProgram` along with the `StepProgramProof` they generated off-chain, or by using the `makeGuess` method for the code breaker and the `giveClue` method for the code master.
+- After the game is started, players continue playing the game until the `finalizeBlock` is reached, either by using recursion with `StepProgram` along with the `StepProgramProof` they generated off-chain, or by using the `makeGuess` method for the code breaker and the `giveClue` method for the code master.
 
 - The Code Master submits the solution again to be checked against the previous guess and provides a clue.
 
@@ -119,10 +119,10 @@ The Mastermind zkApp uses all 8 available states.
 - The `compressedState` is a packed state variable that uses `GameState` class to compress and decompress the state variable.
 - The `GameState` class contains the following states:
   - `rewardAmount` **(UInt64)** - the amount of tokens to be rewarded to the winner.
-  - `finalizeSlot` **(UInt32)** - the slot number when the game is hard finalized.
+  - `finalizeBlock` **(UInt32)** - the block number when the game is hard finalized.
   - `turnCount` **(UInt8)** - the number of turns taken in the game.
   - `isSolved` **(Bool)** - indicates whether the secret combination has been solved.
-  - `lastPlayedSlot` **(UInt32)** - Updated to reflect the timestamp of the latest action; used as a reference in the fully on-chain fallback mode to enforce round-based penalization.
+  - `lastPlayedBlock` **(UInt32)** - Updated to reflect the timestamp of the latest action; used as a reference in the fully on-chain fallback mode to enforce round-based penalization.
 
 ### codemasterId & codebreakerId
 
@@ -201,7 +201,7 @@ This method should be called **first** and can be called **only once** to initia
 - The method takes `proof` and `winnerPubKey` as arguments and updates the contract states when the following conditions are met:
 
   - The game is accepted by the code breaker.
-  - The game is not finalized (i.e., the finalize slot has not been reached), and the game is not solved.
+  - The game is not finalized (i.e., the finalize block has not been reached), and the game is not solved.
   - The given proof is valid and belongs to the current game.
   - The proof has more steps than the current game state (i.e., the proof is not belonging to the previous game state).
 
@@ -217,13 +217,13 @@ This method should be called **first** and can be called **only once** to initia
 
 ### claimReward
 
-- This method should be called after the game is finalized by the code breaker (i.e., the game is solved or the max attempts are reached) or by the code master (i.e., the game is not solved and the finalize slot is reached).
+- This method should be called after the game is finalized by the code breaker (i.e., the game is solved or the max attempts are reached) or by the code master (i.e., the game is not solved and the finalize block is reached).
 
 - The method can be called by only the winner of the game, if the following conditions are met contract will transfer the reward to the winner:
 
   - The game is finalized.
-    - For the **code breaker**, the game must be solved within the _max attempts_ and the proof must be submitted before the _finalize slot_.
-    - For the **code master**, the game either must not be solved within the _max attempts_ or the _finalize slot_ must be reached without the code breaker solving the game.
+    - For the **code breaker**, the game must be solved within the _max attempts_ and the proof must be submitted before the _finalize block_.
+    - For the **code master**, the game either must not be solved within the _max attempts_ or the _finalize block_ must be reached without the code breaker solving the game.
   - The caller is the **winner** of the game.
 
 ---
@@ -248,7 +248,7 @@ This method should be called **first** and can be called **only once** to initia
 - The method can be called by the code breaker only, taking the `guessCombination` as an argument. The method updates the contract states when the following conditions are met:
 
   - The game is is accepted by the code breaker.
-  - The game is not finalized (i.e., the finalize slot has not been reached), and the game is not solved.
+  - The game is not finalized (i.e., the finalize block has not been reached), and the game is not solved.
   - The caller is the code breaker.
   - The provided `guessCombination` is a valid guess.
   - The `turnCount` is less than the `2 * MAX_ATTEMPT = 14` and **odd** (i.e., it is the code breaker's turn).
@@ -265,7 +265,7 @@ This method should be called **first** and can be called **only once** to initia
   - The game must be accepted by the code breaker.
   - The correct sequence is enforced by checking that `turnCount` is non-zero (to avoid colliding with the `createGame` method call) and even.
   - If the game `isSolved`, this method is blocked and cannot be executed.
-  - The game must not be finalized (i.e., the finalize slot has not been reached), and the game is not solved.
+  - The game must not be finalized (i.e., the finalize block has not been reached), and the game is not solved.
   - The `turnCount` is less than or equal to `2 * MAX_ATTEMPT = 14` and **even** (i.e., it is the code master's turn).
   - The provided `secretCombination` and `salt` are valid and match the stored `solutionHash`.
 
