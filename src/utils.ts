@@ -187,8 +187,8 @@ class Clue extends Struct({
 /**
  * `GameState` is a class that represents the state of the game.
  *  @param rewardAmount - The total reward amount for the game.
- *  @param finalizeSlot - The slot at which the game is finalized.
- *  @param lastPlayedSlot - The slot at which the last move was made.
+ *  @param finalizeBlock - The block at which the game is finalized.
+ *  @param lastPlayedBlock - The block at which the last move was made.
  *  @param turnCount - The number of turns taken in the game.
  *  @param isSolved - A flag indicating whether the game is solved or not.
  *
@@ -197,27 +197,32 @@ class Clue extends Struct({
  */
 class GameState extends Struct({
   rewardAmount: UInt64,
-  finalizeSlot: UInt32,
-  lastPlayedSlot: UInt32,
+  finalizeBlock: UInt32,
+  lastPlayedBlock: UInt32,
   turnCount: UInt8,
   isSolved: Bool,
 }) {
   static default = new this({
     rewardAmount: UInt64.from(1e9),
-    finalizeSlot: UInt32.from(0),
-    lastPlayedSlot: UInt32.from(0),
+    finalizeBlock: UInt32.from(0),
+    lastPlayedBlock: UInt32.from(0),
     turnCount: UInt8.from(0),
     isSolved: Bool(false),
   });
 
   pack() {
-    const { rewardAmount, finalizeSlot, lastPlayedSlot, turnCount, isSolved } =
-      this;
+    const {
+      rewardAmount,
+      finalizeBlock,
+      lastPlayedBlock,
+      turnCount,
+      isSolved,
+    } = this;
 
     const serializedState = [
       rewardAmount.toBits(),
-      finalizeSlot.toBits(),
-      lastPlayedSlot.toBits(),
+      finalizeBlock.toBits(),
+      lastPlayedBlock.toBits(),
       turnCount.toBits(),
       isSolved.toField().toBits(1),
     ].flat();
@@ -229,15 +234,15 @@ class GameState extends Struct({
     const bits = serializedState.toBits();
 
     const rewardAmount = UInt64.fromBits(bits.slice(0, 64));
-    const finalizeSlot = UInt32.fromBits(bits.slice(64, 96));
-    const lastPlayedSlot = UInt32.fromBits(bits.slice(96, 128));
+    const finalizeBlock = UInt32.fromBits(bits.slice(64, 96));
+    const lastPlayedBlock = UInt32.fromBits(bits.slice(96, 128));
     const turnCount = UInt8.fromBits(bits.slice(128, 136));
     const isSolved = bits[136];
 
     return new this({
       rewardAmount,
-      finalizeSlot,
-      lastPlayedSlot,
+      finalizeBlock,
+      lastPlayedBlock,
       turnCount,
       isSolved,
     });
