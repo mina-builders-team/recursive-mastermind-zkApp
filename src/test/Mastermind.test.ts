@@ -25,6 +25,8 @@ import {
 } from './testUtils';
 import { players } from './mock';
 import { MAX_ATTEMPTS, PER_TURN_GAME_DURATION } from '../constants';
+import dotenv from 'dotenv';
+dotenv.config();
 
 describe('Mastermind ZkApp Tests', () => {
   // Global variables
@@ -135,6 +137,25 @@ describe('Mastermind ZkApp Tests', () => {
     }
   }
 
+  async function sendMina(
+    senderKey: PrivateKey,
+    receiverKey: PublicKey,
+    amount: UInt64
+  ) {
+    const tx = await Mina.transaction(
+      { sender: senderKey.toPublicKey(), fee },
+      async () => {
+        const senderAccount = AccountUpdate.createSigned(
+          senderKey.toPublicKey()
+        );
+        AccountUpdate.fundNewAccount(senderKey.toPublicKey());
+        senderAccount.send({ to: receiverKey, amount });
+      }
+    );
+
+    await waitTransactionAndFetchAccount(tx, [senderKey], [receiverKey]);
+  }
+
   /**
    * Deploy a fresh Mastermind ZkApp contract.
    * @param zkapp The MastermindZkApp instance
@@ -163,23 +184,20 @@ describe('Mastermind ZkApp Tests', () => {
   }
 
   /**
-   * Initialize the game on-chain (sets the secret combination, salt, max attempts, and referee), and funds the contract with the reward amount.
+   * Initialize the game on-chain (sets the secret combination, salt, max attempts), and funds the contract with the reward amount.
    * @param zkapp The MastermindZkApp instance
    * @param deployerKey Key of the account funding the deploy
    * @param secretCombinationNumbers The secret combination
    * @param salt The salt to use protecting from pre-image attacks
    * @param maxAttempt Number of max attempts allowed
-   * @param refereeKey Key of the referee
    */
   async function initializeGame(
     zkapp: MastermindZkApp,
     deployerKey: PrivateKey,
     secretCombinationNumbers: number[],
-    salt: Field,
-    refereeKey: PrivateKey
+    salt: Field
   ) {
     const deployerAccount = deployerKey.toPublicKey();
-    const refereeAccount = refereeKey.toPublicKey();
     const secretCombination = Combination.from(secretCombinationNumbers);
 
     const initTx = await Mina.transaction(
@@ -188,7 +206,6 @@ describe('Mastermind ZkApp Tests', () => {
         await zkapp.initGame(
           secretCombination,
           salt,
-          refereeAccount,
           UInt64.from(REWARD_AMOUNT)
         );
       }
@@ -205,11 +222,9 @@ describe('Mastermind ZkApp Tests', () => {
     deployerKey: PrivateKey,
     secretCombinationNumbers: number[],
     salt: Field,
-    refereeKey: PrivateKey,
     expectedMsg?: string
   ) {
     const deployerAccount = deployerKey.toPublicKey();
-    const refereeAccount = refereeKey.toPublicKey();
     const secretCombination = new Combination({
       digits: secretCombinationNumbers.map((n) => Field(n)),
     });
@@ -221,7 +236,6 @@ describe('Mastermind ZkApp Tests', () => {
           await zkapp.initGame(
             secretCombination,
             salt,
-            refereeAccount,
             UInt64.from(REWARD_AMOUNT)
           );
         }
@@ -242,18 +256,15 @@ describe('Mastermind ZkApp Tests', () => {
    * @param zkappPrivateKey Key of the new zkApp
    * @param secretCombinationNumbers The secret combination
    * @param salt The salt to use protecting from pre-image attacks
-   * @param refereeKey Key of the referee
    */
   async function deployAndInitializeGame(
     zkapp: MastermindZkApp,
     deployerKey: PrivateKey,
     zkappPrivateKey: PrivateKey,
     secretCombinationNumbers: number[],
-    salt: Field,
-    refereeKey: PrivateKey
+    salt: Field
   ) {
     const deployerAccount = deployerKey.toPublicKey();
-    const refereeAccount = refereeKey.toPublicKey();
     const secretCombination = Combination.from(secretCombinationNumbers);
 
     const tx = await Mina.transaction(
@@ -264,7 +275,6 @@ describe('Mastermind ZkApp Tests', () => {
         await zkapp.initGame(
           secretCombination,
           salt,
-          refereeAccount,
           UInt64.from(REWARD_AMOUNT)
         );
       }
@@ -290,8 +300,7 @@ describe('Mastermind ZkApp Tests', () => {
       codeMasterKey,
       zkappPrivateKey,
       secretCombination,
-      codeMasterSalt,
-      refereeKey
+      codeMasterSalt
     );
 
     await acceptGame(codeBreakerPubKey, codeBreakerKey);
@@ -536,11 +545,7 @@ describe('Mastermind ZkApp Tests', () => {
   /**
    * Helper function to penalize a player.
    */
-  async function forfeitWinForPlayer(
-    refereeKey: PrivateKey,
-    playerPubKey: PublicKey
-  ) {
-    const refereePubKey = refereeKey.toPublicKey();
+  async function forfeitWinForPlayer(playerPubKey: PublicKey) {
     await fetchAccounts([playerPubKey, zkappAddress]);
     const playerPrevBalance = Mina.getBalance(playerPubKey);
     const penaltyTx = await Mina.transaction(
@@ -742,6 +747,11 @@ describe('Mastermind ZkApp Tests', () => {
       await MastermindZkApp.compile();
     }
 
+    if (!process.env.REFEREE_PRIV_KEY) throw Error('Set REFEREE_PRIV_KEY');
+
+    refereeKey = PrivateKey.fromBase58(process.env.REFEREE_PRIV_KEY);
+    refereePubKey = refereeKey.toPublicKey();
+
     if (testEnvironment === 'local') {
       // Set up the Mina local blockchain
       Local = await Mina.LocalBlockchain({ proofsEnabled });
@@ -757,8 +767,11 @@ describe('Mastermind ZkApp Tests', () => {
       intruderKey = Local.testAccounts[2].key;
       intruderPubKey = intruderKey.toPublicKey();
 
-      refereeKey = Local.testAccounts[3].key;
-      refereePubKey = refereeKey.toPublicKey();
+      await sendMina(
+        Local.testAccounts[3].key,
+        refereePubKey,
+        UInt64.from(1e10)
+      );
     } else if (testEnvironment === 'devnet') {
       // Set up the Mina devnet
       const Network = Mina.Network({
@@ -777,9 +790,6 @@ describe('Mastermind ZkApp Tests', () => {
 
       intruderKey = players[2][0];
       intruderPubKey = players[2][1];
-
-      refereeKey = players[3][0];
-      refereePubKey = players[3][1];
     } else if (testEnvironment === 'lightnet') {
       // Set up the Mina lightnet
       const Network = Mina.Network({
@@ -800,8 +810,13 @@ describe('Mastermind ZkApp Tests', () => {
       intruderKey = (await Lightnet.acquireKeyPair()).privateKey;
       intruderPubKey = intruderKey.toPublicKey();
 
-      refereeKey = (await Lightnet.acquireKeyPair()).privateKey;
-      refereePubKey = refereeKey.toPublicKey();
+      await sendMina(
+        (
+          await Lightnet.acquireKeyPair()
+        ).privateKey,
+        refereePubKey,
+        UInt64.from(1e10)
+      );
     }
 
     // Initialize codeMasterSalt & secret combination
@@ -880,7 +895,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           secretCombination,
           codeMasterSalt,
-          refereeKey,
           expectedMsg
         );
       });
@@ -894,7 +908,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           secretCombination,
           codeMasterSalt,
-          refereeKey,
           expectedMsg
         );
         REWARD_AMOUNT = 1e10;
@@ -907,7 +920,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [8, 5, 2, 1],
           codeMasterSalt,
-          refereeKey,
           expectedMsg
         );
       });
@@ -919,7 +931,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [2, 9, 1, 5],
           codeMasterSalt,
-          refereeKey,
           expectedMsg
         );
       });
@@ -931,7 +942,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [2, 5, 9, 1],
           codeMasterSalt,
-          refereeKey,
           expectedMsg
         );
       });
@@ -943,7 +953,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [2, 5, 1, 9],
           codeMasterSalt,
-          refereeKey,
           expectedMsg
         );
       });
@@ -955,7 +964,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [1, 1, 2, 3],
           codeMasterSalt,
-          refereeKey,
           expectedMsg
         );
       });
@@ -967,7 +975,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [2, 2, 5, 3],
           codeMasterSalt,
-          refereeKey,
           expectedErrorMessage
         );
       });
@@ -979,7 +986,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [1, 4, 4, 6],
           codeMasterSalt,
-          refereeKey,
           expectedErrorMessage
         );
       });
@@ -991,7 +997,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [3, 1, 5, 5],
           codeMasterSalt,
-          refereeKey,
           expectedErrorMessage
         );
       });
@@ -1004,7 +1009,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [24, 24, 24, 24],
           codeMasterSalt,
-          refereeKey,
           expectedErrorMessage
         );
       });
@@ -1016,7 +1020,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           [0, 0, 0, 0],
           codeMasterSalt,
-          refereeKey,
           expectedErrorMessage
         );
       });
@@ -1027,8 +1030,7 @@ describe('Mastermind ZkApp Tests', () => {
         zkapp,
         codeMasterKey,
         secretCombination,
-        codeMasterSalt,
-        refereeKey
+        codeMasterSalt
       );
 
       let { rewardAmount, finalizeSlot, turnCount, isSolved } =
@@ -1041,9 +1043,7 @@ describe('Mastermind ZkApp Tests', () => {
       expect(zkapp.codeMasterId.get()).toEqual(
         Poseidon.hash(codeMasterPubKey.toFields())
       );
-      expect(zkapp.refereeId.get()).toEqual(
-        Poseidon.hash(refereePubKey.toFields())
-      );
+
       expect(zkapp.solutionHash.get()).toEqual(
         Poseidon.hash([
           ...Combination.from(secretCombination).digits,
@@ -1070,7 +1070,6 @@ describe('Mastermind ZkApp Tests', () => {
         codeMasterKey,
         secretCombination,
         codeMasterSalt,
-        refereeKey,
         expectedMsg
       );
     });
@@ -1254,8 +1253,7 @@ describe('Mastermind ZkApp Tests', () => {
         codeMasterKey,
         zkappPrivateKey,
         secretCombination,
-        codeMasterSalt,
-        refereeKey
+        codeMasterSalt
       );
     });
 
@@ -1354,7 +1352,7 @@ describe('Mastermind ZkApp Tests', () => {
 
     it('Penalty for codeBreaker', async () => {
       log('Penalty for codeBreaker');
-      await forfeitWinForPlayer(refereeKey, codeMasterPubKey);
+      await forfeitWinForPlayer(codeMasterPubKey);
     });
 
     it('Reject forfeitWin method call again', async () => {
@@ -1371,7 +1369,7 @@ describe('Mastermind ZkApp Tests', () => {
 
     it('Penalty for codeMaster', async () => {
       log('Penalty for codeMaster');
-      await forfeitWinForPlayer(refereeKey, codeBreakerPubKey);
+      await forfeitWinForPlayer(codeBreakerPubKey);
     });
 
     it('Reject forfeitWin method call again', async () => {

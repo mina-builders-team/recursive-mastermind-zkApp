@@ -35,11 +35,14 @@
     "eslint-plugin-o1js": "^0.4.0",
     "jest": "^28.1.3",
     "prettier": "^2.3.2",
+    "rimraf": "^6.0.1",
     "ts-jest": "^28.0.8",
-    "typescript": "^5.1",
-    "rimraf": "^6.0.1"
+    "typescript": "^5.1"
   },
   "peerDependencies": {
     "o1js": "^2.4.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1"
   }
 }
