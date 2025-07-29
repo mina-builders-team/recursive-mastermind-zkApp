@@ -185,7 +185,7 @@ describe('Mastermind ZkProgram Tests', () => {
       contractAddress
     );
 
-    lastClue = Clue.giveClue(lastGuess.digits, secretCombination.digits);
+    lastClue = Clue.generateClue(lastGuess.digits, secretCombination.digits);
     lastClueHistory = Clue.updateHistory(
       lastClue,
       lastProof.publicOutput.packedClueHistory,

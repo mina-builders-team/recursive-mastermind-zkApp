@@ -220,7 +220,10 @@ const StepProgram = ZkProgram({
           previousGuess.publicOutput.lastCompressedGuess
         );
 
-        const clue = Clue.giveClue(lastGuess.digits, secretCombination.digits);
+        const clue = Clue.generateClue(
+          lastGuess.digits,
+          secretCombination.digits
+        );
 
         const packedClueHistory = Clue.updateHistory(
           clue,
