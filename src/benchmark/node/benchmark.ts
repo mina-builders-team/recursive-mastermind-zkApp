@@ -15,6 +15,8 @@ import { StepProgram, StepProgramProof } from '../../stepProgram.js';
 import { performance } from 'perf_hooks';
 import { Clue, Combination } from '../../utils.js';
 import { players } from '../../test/mock.js';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const logsEnabled = process.env.LOGS_ENABLED === '1';
 const testEnvironment = process.env.TEST_ENV ?? 'local';
@@ -70,11 +72,9 @@ async function deployAndInitializeGame(
   zkappPrivateKey: PrivateKey,
   codeMasterKey: PrivateKey,
   codeMasterSalt: Field,
-  secretCombination: Combination,
-  refereeKey: PrivateKey
+  secretCombination: Combination
 ) {
   const deployerAccount = codeMasterKey.toPublicKey();
-  const refereeAccount = refereeKey.toPublicKey();
 
   const initTx = await Mina.transaction(
     {
@@ -87,7 +87,6 @@ async function deployAndInitializeGame(
       await zkapp.initGame(
         secretCombination,
         codeMasterSalt,
-        refereeAccount,
         UInt64.from(1e10)
       );
     }
@@ -353,6 +352,30 @@ async function solveBenchmark(secret: number[], steps: Combination[]) {
 
   codeMasterSalt = Field.random();
 
+  async function sendMina(
+    senderKey: PrivateKey,
+    receiverKey: PublicKey,
+    amount: UInt64
+  ) {
+    const tx = await Mina.transaction(
+      { sender: senderKey.toPublicKey(), fee },
+      async () => {
+        const senderAccount = AccountUpdate.createSigned(
+          senderKey.toPublicKey()
+        );
+        AccountUpdate.fundNewAccount(senderKey.toPublicKey());
+        senderAccount.send({ to: receiverKey, amount });
+      }
+    );
+
+    await waitTransactionAndFetchAccount(tx, [senderKey], [receiverKey]);
+  }
+
+  if (!process.env.REFEREE_PRIV_KEY) throw Error('Set REFEREE_PRIV_KEY');
+
+  refereeKey = PrivateKey.fromBase58(process.env.REFEREE_PRIV_KEY);
+  refereePubKey = refereeKey.toPublicKey();
+
   if (testEnvironment === 'local') {
     // Set up the Mina local blockchain
     Local = await Mina.LocalBlockchain({ proofsEnabled });
@@ -365,8 +388,7 @@ async function solveBenchmark(secret: number[], steps: Combination[]) {
     codeBreakerKey = Local.testAccounts[1].key;
     codeBreakerPubKey = codeBreakerKey.toPublicKey();
 
-    refereeKey = Local.testAccounts[2].key;
-    refereePubKey = refereeKey.toPublicKey();
+    await sendMina(Local.testAccounts[3].key, refereePubKey, UInt64.from(1e10));
   } else if (testEnvironment === 'devnet') {
     // Set up the Mina devnet
     const Network = Mina.Network({
@@ -382,9 +404,6 @@ async function solveBenchmark(secret: number[], steps: Combination[]) {
 
     codeBreakerKey = players[1][0];
     codeBreakerPubKey = players[1][1];
-
-    refereeKey = players[2][0];
-    refereePubKey = players[2][1];
   } else if (testEnvironment === 'lightnet') {
     // Set up the Mina lightnet
     const Network = Mina.Network({
@@ -402,8 +421,13 @@ async function solveBenchmark(secret: number[], steps: Combination[]) {
     codeBreakerKey = (await Lightnet.acquireKeyPair()).privateKey;
     codeBreakerPubKey = codeBreakerKey.toPublicKey();
 
-    refereeKey = (await Lightnet.acquireKeyPair()).privateKey;
-    refereePubKey = refereeKey.toPublicKey();
+    await sendMina(
+      (
+        await Lightnet.acquireKeyPair()
+      ).privateKey,
+      refereePubKey,
+      UInt64.from(1e10)
+    );
   }
 
   if (
@@ -438,8 +462,7 @@ async function solveBenchmark(secret: number[], steps: Combination[]) {
     zkappPrivateKey,
     codeMasterKey,
     codeMasterSalt,
-    secretCombination,
-    refereeKey
+    secretCombination
   );
   let end = performance.now();
 
