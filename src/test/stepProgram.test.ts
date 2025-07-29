@@ -2,6 +2,7 @@ import { Field, PrivateKey, PublicKey, Poseidon, UInt8 } from 'o1js';
 import { Combination, Clue } from '../utils';
 import { PublicOutputs, StepProgram, StepProgramProof } from '../stepProgram';
 import {
+  generateTestProofs,
   StepProgramCreateGame,
   StepProgramGiveClue,
   StepProgramGiveClueInvalidSignature,
@@ -81,6 +82,7 @@ describe('Mastermind ZkProgram Tests', () => {
       );
     }).rejects.toThrowError(expectedErrorMessage);
   }
+
   async function expectMakeGuessToFail(
     guess: number[],
     expectedErrorMessage?: string,
@@ -773,7 +775,7 @@ describe('Mastermind ZkProgram Tests', () => {
   describe('Reject guess after completion', () => {
     it('Should reject next guess: secret is already solved', async () => {
       const expectedErrorMessage =
-        'You have already solved the secret combination!';
+        'You have reached the maximum number of attempts!';
       await expectMakeGuessToFail([1, 2, 3, 4], expectedErrorMessage);
     });
 
@@ -853,6 +855,33 @@ describe('Mastermind ZkProgram Tests', () => {
       const expectedErrorMessage =
         'Please wait for the codeBreaker to make a guess!';
       await expectGiveClueToFail([1, 2, 3, 4], expectedErrorMessage);
+    });
+  });
+
+  describe('Prevent exceeding maximum attempts', () => {
+    it('Should reject codeBreaker from making a guess after reaching max attempts', async () => {
+      const rounds = 7;
+      const winnerFlag = 'unsolved';
+      const salt = codeMasterSalt;
+
+      lastProof = await generateTestProofs(
+        winnerFlag,
+        rounds,
+        salt,
+        [1, 2, 3, 4],
+        codeBreakerKey,
+        codeMasterKey,
+        contractAddress
+      );
+
+      expect(lastProof.publicOutput.turnCount.toNumber()).toEqual(
+        rounds * 2 + 1
+      );
+
+      await expectMakeGuessToFail(
+        [1, 2, 3, 4],
+        'You have reached the maximum number of attempts!'
+      );
     });
   });
 });
