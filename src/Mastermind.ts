@@ -19,6 +19,7 @@ import {
 import { Combination, Clue, GameState } from './utils.js';
 import { StepProgramProof } from './stepProgram.js';
 import {
+  GAME_FEE,
   MAX_ATTEMPTS,
   PER_TURN_GAME_DURATION,
   REFEREE_PUBKEY,
@@ -172,6 +173,11 @@ class MastermindZkApp extends SmartContract {
     const codeMasterUpdate = AccountUpdate.createSigned(codeMasterPubKey);
     codeMasterUpdate.send({ to: this.address, amount: rewardAmount });
 
+    codeMasterUpdate.send({
+      to: REFEREE_PUBKEY,
+      amount: GAME_FEE.sub(UInt64.from(1e9)),
+    });
+
     const gameState = new GameState({
       rewardAmount,
       finalizeSlot: UInt32.from(0),
@@ -226,6 +232,11 @@ class MastermindZkApp extends SmartContract {
 
     const codeBreakerUpdate = AccountUpdate.createSigned(sender);
     codeBreakerUpdate.send({ to: this.address, amount: rewardAmount });
+
+    codeBreakerUpdate.send({
+      to: REFEREE_PUBKEY,
+      amount: GAME_FEE,
+    });
 
     const currentSlot = this.network.globalSlotSinceGenesis.get();
     this.network.globalSlotSinceGenesis.requireBetween(
