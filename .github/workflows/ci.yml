@@ -47,3 +47,4 @@ jobs:
         run: npm test
         env:
           CI: true
+          REFEREE_PRIV_KEY: ${{ secrets.REFEREE_PRIV_KEY }}
