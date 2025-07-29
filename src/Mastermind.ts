@@ -162,8 +162,6 @@ class MastermindZkApp extends SmartContract {
     const isInitialized = this.account.provedState.getAndRequireEquals();
     isInitialized.assertFalse('The game has already been initialized!');
 
-    super.init();
-
     secretCombination.validate();
     rewardAmount.assertGreaterThanOrEqual(
       UInt64.from(1e10),
