@@ -1,4 +1,8 @@
-import { PER_TURN_GAME_DURATION, MAX_ATTEMPTS } from './constants.js';
+import {
+  PER_TURN_GAME_DURATION,
+  MAX_ATTEMPTS,
+  REFEREE_PUBKEY,
+} from './constants.js';
 import {
   MastermindZkApp,
   NewGameEvent,
@@ -19,6 +23,7 @@ export {
   MastermindZkApp,
   PER_TURN_GAME_DURATION,
   MAX_ATTEMPTS,
+  REFEREE_PUBKEY,
   NewGameEvent,
   GameAcceptEvent,
   RewardClaimEvent,
