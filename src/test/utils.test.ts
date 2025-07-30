@@ -727,7 +727,7 @@ describe('utility.ts unit tests', () => {
       it('should create a GameState object with default values', () => {
         const gameState = GameState.default;
         expect(gameState).toBeInstanceOf(GameState);
-        expect(gameState.rewardAmount).toEqual(UInt64.from(1e9));
+        expect(gameState.rewardAmount).toEqual(UInt64.from(1e10));
         expect(gameState.finalizeSlot).toEqual(UInt32.from(0));
         expect(gameState.lastPlayedSlot).toEqual(UInt32.from(0));
         expect(gameState.turnCount).toEqual(UInt8.from(0));
@@ -777,7 +777,7 @@ describe('utility.ts unit tests', () => {
         const packed = gameState.pack();
         expect(packed).toEqual(
           Field.fromBits([
-            ...UInt64.from(1e9).toBits(),
+            ...UInt64.from(1e10).toBits(),
             ...UInt32.from(0).toBits(),
             ...UInt32.from(0).toBits(),
             ...UInt8.from(0).toBits(),
@@ -847,7 +847,7 @@ describe('utility.ts unit tests', () => {
 
       it('should unpack the GameState object correctly with default values', () => {
         const packed = Field.fromBits([
-          ...UInt64.from(1e9).toBits(),
+          ...UInt64.from(1e10).toBits(),
           ...UInt32.from(0).toBits(),
           ...UInt32.from(0).toBits(),
           ...UInt8.from(0).toBits(),
@@ -855,7 +855,7 @@ describe('utility.ts unit tests', () => {
         ]);
         const gameState = GameState.unpack(packed);
         expect(gameState).toBeInstanceOf(GameState);
-        expect(gameState.rewardAmount).toEqual(UInt64.from(1e9));
+        expect(gameState.rewardAmount).toEqual(UInt64.from(1e10));
         expect(gameState.finalizeSlot).toEqual(UInt32.from(0));
         expect(gameState.lastPlayedSlot).toEqual(UInt32.from(0));
         expect(gameState.turnCount).toEqual(UInt8.from(0));
