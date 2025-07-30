@@ -608,7 +608,7 @@ class MastermindZkApp extends SmartContract {
       .add(PER_TURN_GAME_DURATION)
       .assertGreaterThanOrEqual(
         currentSlot,
-        'You have passed the time limit to make a guess!'
+        'You have passed the time limit to give clue!'
       );
 
     const lastGuess = Combination.getElementFromHistory(
