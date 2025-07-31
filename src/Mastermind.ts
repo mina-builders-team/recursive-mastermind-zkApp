@@ -524,17 +524,17 @@ class MastermindZkApp extends SmartContract {
       .not()
       .assertTrue('Please wait for the codeMaster to give you a clue!');
 
-    turnCount.assertLessThan(
-      MAX_ATTEMPTS * 2,
-      'You have reached the number limit of attempts to solve the secret combination!'
-    );
-
     this.codeBreakerId
       .getAndRequireEquals()
       .assertEquals(
         Poseidon.hash(this.sender.getAndRequireSignature().toFields()),
         'You are not the codeBreaker of this game!'
       );
+
+    turnCount.assertLessThan(
+      MAX_ATTEMPTS * 2,
+      'You have reached the number limit of attempts to solve the secret combination!'
+    );
 
     lastPlayedSlot
       .add(PER_TURN_GAME_DURATION)
