@@ -644,13 +644,12 @@ class MastermindZkApp extends SmartContract {
 
     this.packedClueHistory.set(packedClueHistory);
 
-    isSolved = isSolved.or(clue.isSolved());
     const gameState = new GameState({
       rewardAmount,
       finalizeSlot,
       turnCount: turnCount.add(1),
       lastPlayedSlot: currentSlot,
-      isSolved,
+      isSolved: clue.isSolved(),
     });
 
     this.compressedState.set(gameState.pack());
