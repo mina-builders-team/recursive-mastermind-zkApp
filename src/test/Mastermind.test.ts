@@ -1408,6 +1408,36 @@ describe('Mastermind ZkApp Tests', () => {
         'There is no reward in the pool, the game is already finalized!';
       await expectForfeitWinToFail(codeBreakerPubKey, expectedMsg);
     });
+
+    it('Reject submitGameProof method call after forfeitWin', async () => {
+      const expectedMsg = 'Forfeit win has been called!';
+      await expectProofSubmissionToFail(
+        completedProof,
+        codeBreakerPubKey,
+        expectedMsg
+      );
+    });
+
+    it('Reject makeGuess method call after forfeitWin', async () => {
+      const expectedMsg = 'Forfeit win has been called!';
+      await expectMakeGuessToFail(
+        codeBreakerPubKey,
+        codeBreakerKey,
+        Combination.from([2, 1, 3, 4]),
+        expectedMsg
+      );
+    });
+
+    it('Reject giveClue method call after forfeitWin', async () => {
+      const expectedMsg = 'Forfeit win has been called!';
+      await expectGiveClueToFail(
+        codeMasterPubKey,
+        codeMasterKey,
+        Combination.from([2, 1, 3, 4]),
+        codeMasterSalt,
+        expectedMsg
+      );
+    });
   });
 
   describe('Code Master punished for timeout', () => {
