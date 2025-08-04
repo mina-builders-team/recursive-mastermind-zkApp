@@ -226,7 +226,7 @@ class GameState extends Struct({
   }
 
   static unpack(serializedState: Field) {
-    const bits = serializedState.toBits();
+    const bits = serializedState.toBits(137);
 
     const rewardAmount = UInt64.fromBits(bits.slice(0, 64));
     const finalizeSlot = UInt32.fromBits(bits.slice(64, 96));
