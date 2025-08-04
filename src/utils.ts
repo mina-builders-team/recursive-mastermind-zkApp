@@ -138,7 +138,7 @@ class Clue extends Struct({
     });
   }
 
-  static giveClue(guess: Field[], solution: Field[]) {
+  static generateClue(guess: Field[], solution: Field[]) {
     let hits = Field(0);
     let blows = Field(0);
 

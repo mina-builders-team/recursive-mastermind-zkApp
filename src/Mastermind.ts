@@ -605,7 +605,7 @@ class MastermindZkApp extends SmartContract {
       turnCount.div(2).sub(1).value
     );
 
-    const clue = Clue.giveClue(lastGuess.digits, secretCombination.digits);
+    const clue = Clue.generateClue(lastGuess.digits, secretCombination.digits);
     const packedClueHistory = Clue.updateHistory(
       clue,
       this.packedClueHistory.getAndRequireEquals(),

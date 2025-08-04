@@ -609,42 +609,42 @@ describe('utility.ts unit tests', () => {
       it('should give the correct clue for guess=[1, 2, 3, 4] and solution=[1, 2, 3, 4]', () => {
         const guess = [1, 2, 3, 4].map(Field);
         const solution = [1, 2, 3, 4].map(Field);
-        const clue = Clue.giveClue(guess, solution);
+        const clue = Clue.generateClue(guess, solution);
         expect(clue.hits).toEqual(Field(4));
         expect(clue.blows).toEqual(Field(0));
       });
       it('should give the correct clue for guess=[1, 2, 3, 4] and solution=[4, 3, 2, 1]', () => {
         const guess = [1, 2, 3, 4].map(Field);
         const solution = [4, 3, 2, 1].map(Field);
-        const clue = Clue.giveClue(guess, solution);
+        const clue = Clue.generateClue(guess, solution);
         expect(clue.hits).toEqual(Field(0));
         expect(clue.blows).toEqual(Field(4));
       });
       it('should give the correct clue for guess=[1, 2, 3, 4] and solution=[1, 3, 2, 4]', () => {
         const guess = [1, 2, 3, 4].map(Field);
         const solution = [1, 3, 2, 4].map(Field);
-        const clue = Clue.giveClue(guess, solution);
+        const clue = Clue.generateClue(guess, solution);
         expect(clue.hits).toEqual(Field(2));
         expect(clue.blows).toEqual(Field(2));
       });
       it('should give the correct clue for guess=[1, 2, 3, 4] and solution=[2, 1, 4, 3]', () => {
         const guess = [1, 2, 3, 4].map(Field);
         const solution = [2, 1, 4, 3].map(Field);
-        const clue = Clue.giveClue(guess, solution);
+        const clue = Clue.generateClue(guess, solution);
         expect(clue.hits).toEqual(Field(0));
         expect(clue.blows).toEqual(Field(4));
       });
       it('should give the correct clue for guess=[4, 7, 6, 1] and solution=[2, 1, 4, 3]', () => {
         const guess = [4, 7, 6, 1].map(Field);
         const solution = [2, 1, 4, 3].map(Field);
-        const clue = Clue.giveClue(guess, solution);
+        const clue = Clue.generateClue(guess, solution);
         expect(clue.hits).toEqual(Field(0));
         expect(clue.blows).toEqual(Field(2));
       });
       it('should give the correct clue for guess=[3, 2, 6, 7] and solution=[2, 5, 3, 1]', () => {
         const guess = [3, 2, 6, 7].map(Field);
         const solution = [2, 5, 3, 1].map(Field);
-        const clue = Clue.giveClue(guess, solution);
+        const clue = Clue.generateClue(guess, solution);
         expect(clue.hits).toEqual(Field(0));
         expect(clue.blows).toEqual(Field(2));
       });
@@ -652,7 +652,7 @@ describe('utility.ts unit tests', () => {
       it('should give the correct clue for guess=[4, 2, 1, 7] and solution=[4, 5, 1, 3]', () => {
         const guess = [4, 2, 1, 7].map(Field);
         const solution = [4, 5, 1, 3].map(Field);
-        const clue = Clue.giveClue(guess, solution);
+        const clue = Clue.generateClue(guess, solution);
         expect(clue.hits).toEqual(Field(2));
         expect(clue.blows).toEqual(Field(0));
       });
@@ -660,7 +660,7 @@ describe('utility.ts unit tests', () => {
       it('should give the correct clue for guess=[5, 3, 1, 6] and solution=[4, 5, 1, 6]', () => {
         const guess = [5, 3, 1, 6].map(Field);
         const solution = [4, 5, 1, 6].map(Field);
-        const clue = Clue.giveClue(guess, solution);
+        const clue = Clue.generateClue(guess, solution);
         expect(clue.hits).toEqual(Field(2));
         expect(clue.blows).toEqual(Field(1));
       });
