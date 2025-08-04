@@ -1125,6 +1125,15 @@ describe('Mastermind ZkApp Tests', () => {
       });
     });
 
+    it('Reject accepting the game with codeMaster pubkey', async () => {
+      const expectedMsg = 'Code master cannot be the code breaker!';
+      await expectAcceptGameToFail(
+        codeMasterPubKey,
+        codeMasterKey,
+        expectedMsg
+      );
+    });
+
     it('Accept the game successfully', async () => {
       await acceptGame(codeBreakerPubKey, codeBreakerKey);
 

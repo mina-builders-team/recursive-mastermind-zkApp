@@ -247,7 +247,13 @@ class MastermindZkApp extends SmartContract {
       isSolved: Bool(false),
     });
 
-    this.codeBreakerId.set(Poseidon.hash(sender.toFields()));
+    const codeBreakerId = Poseidon.hash(sender.toFields());
+    codeBreakerId.assertNotEquals(
+      this.codeMasterId.getAndRequireEquals(),
+      'Code master cannot be the code breaker!'
+    );
+
+    this.codeBreakerId.set(codeBreakerId);
     this.compressedState.set(gameState.pack());
 
     this.emitEvent(
