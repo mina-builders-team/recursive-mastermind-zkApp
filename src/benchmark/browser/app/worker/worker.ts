@@ -47,6 +47,32 @@ function log(...args: any[]) {
 }
 
 const functions = {
+  sendMina: async ({
+    senderKey,
+    receiverKey,
+    amount,
+  }: {
+    senderKey: PrivateKey;
+    receiverKey: PublicKey;
+    amount: UInt64;
+  }) => {
+    const tx = await Mina.transaction(
+      { sender: senderKey.toPublicKey(), fee },
+      async () => {
+        const senderAccount = AccountUpdate.createSigned(
+          senderKey.toPublicKey()
+        );
+        AccountUpdate.fundNewAccount(senderKey.toPublicKey());
+        senderAccount.send({ to: receiverKey, amount });
+      }
+    );
+
+    await functions.waitTransactionAndFetchAccount({
+      tx,
+      keys: [senderKey],
+      accountsToFetch: [receiverKey, senderKey.toPublicKey()],
+    });
+  },
   setActiveInstance: async ({
     secretCombination,
   }: {
@@ -72,6 +98,13 @@ const functions = {
     state.codeMasterSalt = Field.random();
     state.secretCombination = Combination.from(secretCombination);
 
+    if (!process.env.NEXT_PUBLIC_KEY) {
+      throw new Error('NEXT_PUBLIC_KEY is not defined');
+    }
+
+    state.refereeKey = PrivateKey.fromBase58(process.env.NEXT_PUBLIC_KEY);
+    state.refereePubKey = state.refereeKey.toPublicKey();
+
     // @ts-ignore
     if (testEnvironment === 'local') {
       // Set up the Mina local blockchain
@@ -86,8 +119,11 @@ const functions = {
       state.codeBreakerKey = Local.testAccounts[1].key;
       state.codeBreakerPubKey = state.codeBreakerKey.toPublicKey();
 
-      state.refereeKey = Local.testAccounts[2].key;
-      state.refereePubKey = state.refereeKey.toPublicKey();
+      await functions.sendMina({
+        senderKey: Local.testAccounts[3].key,
+        receiverKey: state.refereePubKey,
+        amount: UInt64.from(1e10),
+      });
     } else if (testEnvironment === 'devnet') {
       // Set up the Mina devnet
       const Network = Mina.Network({
@@ -125,8 +161,11 @@ const functions = {
       state.codeBreakerKey = (await Lightnet.acquireKeyPair()).privateKey;
       state.codeBreakerPubKey = state.codeBreakerKey.toPublicKey();
 
-      state.refereeKey = (await Lightnet.acquireKeyPair()).privateKey;
-      state.refereePubKey = state.refereeKey.toPublicKey();
+      await functions.sendMina({
+        senderKey: (await Lightnet.acquireKeyPair()).privateKey,
+        receiverKey: state.refereePubKey,
+        amount: UInt64.from(1e10),
+      });
     }
 
     state.benchmarkResults = {
@@ -236,7 +275,6 @@ const functions = {
         await state.zkapp!.initGame(
           state.secretCombination!,
           state.codeMasterSalt!,
-          state.refereeKey!.toPublicKey(),
           UInt64.from(1e10)
         );
       }

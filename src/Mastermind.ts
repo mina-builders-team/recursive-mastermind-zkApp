@@ -18,7 +18,11 @@ import {
 
 import { Combination, Clue, GameState } from './utils.js';
 import { StepProgramProof } from './stepProgram.js';
-import { MAX_ATTEMPTS, PER_TURN_GAME_DURATION } from './constants.js';
+import {
+  MAX_ATTEMPTS,
+  PER_TURN_GAME_DURATION,
+  REFEREE_PUBKEY,
+} from './constants.js';
 
 export {
   NewGameEvent,
@@ -72,11 +76,6 @@ class MastermindZkApp extends SmartContract {
    * `codeBreakerId` is the ID of the codeBreaker `Hash(PubKey)` who accepted the game.
    */
   @state(Field) codeBreakerId = State<Field>();
-
-  /**
-   * `refereeId` is the ID of the referee `Hash(PubKey)` who penalizes misbehaving players.
-   */
-  @state(Field) refereeId = State<Field>();
 
   /**
    * `solutionHash` is the hash of the secret combination and salt.
@@ -147,16 +146,14 @@ class MastermindZkApp extends SmartContract {
   }
 
   /**
-   * Initializes the game, sets the secret combination, maximum attempts, referee, and reward amount.
+   * Initializes the game, sets the secret combination and reward amount.
    * @param secretCombination The secret combination to be solved by the codeBreaker.
    * @param salt The salt to be used in the hash function to prevent pre-image attacks.
-   * @param refereePubKey The public key of the referee who will penalize misbehaving players.
    * @param rewardAmount The amount of tokens to be rewarded to the codeBreaker upon solving the game.
    */
   @method async initGame(
     secretCombination: Combination,
     salt: Field,
-    refereePubKey: PublicKey,
     rewardAmount: UInt64
   ) {
     const isInitialized = this.account.provedState.getAndRequireEquals();
@@ -191,7 +188,6 @@ class MastermindZkApp extends SmartContract {
       ])
     );
     this.codeMasterId.set(Poseidon.hash(codeMasterPubKey.toFields()));
-    this.refereeId.set(Poseidon.hash(refereePubKey.toFields()));
     this.compressedState.set(gameState.pack());
 
     this.emitEvent(
@@ -444,14 +440,13 @@ class MastermindZkApp extends SmartContract {
    * @throws If the game has been finalized, if the caller is not the referee, or if the provided public key is not a player in the game.
    */
   @method async forfeitWin(playerPubKey: PublicKey) {
-    const refereeId = this.refereeId.getAndRequireEquals();
     const codeBreakerId = this.codeBreakerId.getAndRequireEquals();
     const codeMasterId = this.codeMasterId.getAndRequireEquals();
     let { rewardAmount, finalizeSlot, turnCount, isSolved } = GameState.unpack(
       this.compressedState.getAndRequireEquals()
     );
 
-    refereeId.assertEquals(
+    Poseidon.hash(REFEREE_PUBKEY.toFields()).assertEquals(
       Poseidon.hash(this.sender.getAndRequireSignature().toFields()),
       'You are not the referee of this game!'
     );
