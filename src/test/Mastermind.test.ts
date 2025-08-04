@@ -24,7 +24,7 @@ import {
   StepProgramMakeGuess,
 } from './testUtils';
 import { players } from './mock';
-import { MAX_ATTEMPTS, PER_TURN_GAME_DURATION } from '../constants';
+import { GAME_FEE, MAX_ATTEMPTS, PER_TURN_GAME_DURATION } from '../constants';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -197,6 +197,8 @@ describe('Mastermind ZkApp Tests', () => {
     secretCombinationNumbers: number[],
     salt: Field
   ) {
+    const refereeBalance = Mina.getBalance(refereePubKey);
+    const codeMasterBalance = Mina.getBalance(codeMasterPubKey);
     const deployerAccount = deployerKey.toPublicKey();
     const secretCombination = Combination.from(secretCombinationNumbers);
 
@@ -212,6 +214,17 @@ describe('Mastermind ZkApp Tests', () => {
     );
 
     await waitTransactionAndFetchAccount(initTx, [deployerKey], [zkappAddress]);
+
+    const refereeNewBalance = Mina.getBalance(refereePubKey);
+    const codeMasterNewBalance = Mina.getBalance(codeMasterPubKey);
+
+    expect(
+      Number(refereeNewBalance.toBigInt() - refereeBalance.toBigInt())
+    ).toEqual(Number(GAME_FEE.toBigInt()) - 1e9);
+
+    expect(
+      Number(codeMasterBalance.toBigInt() - codeMasterNewBalance.toBigInt())
+    ).toEqual(Number(GAME_FEE.toBigInt()) - 1e9 + REWARD_AMOUNT + fee);
   }
 
   /**
@@ -264,6 +277,8 @@ describe('Mastermind ZkApp Tests', () => {
     secretCombinationNumbers: number[],
     salt: Field
   ) {
+    const refereeBalance = Mina.getBalance(refereePubKey);
+    const codeMasterBalance = Mina.getBalance(codeMasterPubKey);
     const deployerAccount = deployerKey.toPublicKey();
     const secretCombination = Combination.from(secretCombinationNumbers);
 
@@ -285,6 +300,17 @@ describe('Mastermind ZkApp Tests', () => {
       [deployerKey, zkappPrivateKey],
       [zkappAddress, deployerAccount]
     );
+
+    const refereeNewBalance = Mina.getBalance(refereePubKey);
+    const codeMasterNewBalance = Mina.getBalance(codeMasterPubKey);
+
+    expect(
+      Number(refereeNewBalance.toBigInt() - refereeBalance.toBigInt())
+    ).toEqual(Number(GAME_FEE.toBigInt()) - 1e9);
+
+    expect(
+      Number(codeMasterBalance.toBigInt() - codeMasterNewBalance.toBigInt())
+    ).toEqual(Number(GAME_FEE.toBigInt()) + REWARD_AMOUNT + fee);
   }
 
   /**
@@ -426,6 +452,8 @@ describe('Mastermind ZkApp Tests', () => {
    * Helper function to accept a game from player.
    */
   async function acceptGame(player: PublicKey, playerKey: PrivateKey) {
+    const codeBreakerBalance = Mina.getBalance(player);
+    const refereeBalance = Mina.getBalance(refereePubKey);
     const acceptGameTx = await Mina.transaction(
       { sender: player, fee },
       async () => {
@@ -438,6 +466,17 @@ describe('Mastermind ZkApp Tests', () => {
       [playerKey],
       [zkappAddress, player]
     );
+
+    const codeBreakerNewBalance = Mina.getBalance(player);
+    const refereeNewBalance = Mina.getBalance(refereePubKey);
+
+    expect(
+      Number(codeBreakerBalance.toBigInt() - codeBreakerNewBalance.toBigInt())
+    ).toEqual(Number(GAME_FEE.toBigInt()) + REWARD_AMOUNT + fee);
+
+    expect(
+      Number(refereeNewBalance.toBigInt() - refereeBalance.toBigInt())
+    ).toEqual(Number(GAME_FEE.toBigInt()));
   }
 
   /**
