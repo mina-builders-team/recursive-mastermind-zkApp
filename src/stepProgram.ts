@@ -10,6 +10,7 @@ import {
 } from 'o1js';
 
 import { Combination, Clue } from './utils.js';
+import { MAX_ATTEMPTS } from './constants.js';
 
 export { StepProgram, PublicInputs, PublicOutputs, StepProgramProof };
 
@@ -118,6 +119,11 @@ const StepProgram = ZkProgram({
         turnCount
           .isEven()
           .assertFalse('Please wait for the codeMaster to give you a clue!');
+
+        turnCount.assertNotEquals(
+          MAX_ATTEMPTS * 2 + 1,
+          'You have reached the maximum number of attempts!'
+        );
 
         const computedCodebreakerId = Poseidon.hash(
           authInputs.authPubKey.toFields()
