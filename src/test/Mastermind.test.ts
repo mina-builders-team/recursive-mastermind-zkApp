@@ -11,6 +11,7 @@ import {
   fetchAccount,
   fetchLastBlock,
   Lightnet,
+  UInt32,
 } from 'o1js';
 
 import { GameState, Clue, Combination } from '../utils';
@@ -594,64 +595,57 @@ describe('Mastermind ZkApp Tests', () => {
     throw new Error('Forfeit win should have failed');
   }
 
-  /**
-   * Helper function to fetch the latest block and return the global slot
-   */
-  async function getGlobalSlot() {
+  async function getBlockchainLength() {
     const latestBlock = await fetchLastBlock(MINA_NODE_ENDPOINT);
 
-    return latestBlock.globalSlotSinceGenesis.toBigint();
+    return latestBlock.blockchainLength.toBigint();
   }
 
-  async function fetchSlotNumber() {
+  async function fetchBlockNumber() {
     if (localTest) {
-      return Mina.getNetworkState().globalSlotSinceGenesis.toBigint();
+      return Mina.getNetworkState().blockchainLength.toBigint();
     } else {
       const latestBlock = await fetchLastBlock(MINA_NODE_ENDPOINT);
-      return latestBlock.globalSlotSinceGenesis.toBigint();
+      return latestBlock.blockchainLength.toBigint();
     }
   }
 
-  /**
-   * Helper function to wait for a specific slot length.
-   */
-  async function waitFor(slotLength: number) {
+  async function waitFor(blockLength: number) {
     if (localTest) {
-      // Move the global slot forward
-      const before = await fetchSlotNumber();
-      Local.incrementGlobalSlot(slotLength);
-      const after = await fetchSlotNumber();
-      log(`Global slot moved from ${before} to ${after}`);
+      // Move the global block forward
+      const before = await fetchBlockNumber();
+      Local.setBlockchainLength(UInt32.from(blockLength));
+      const after = await fetchBlockNumber();
+      log(`Blockchain length moved from ${before} to ${after}`);
       return;
-    } else {
-      while (true) {
-        let currentSlot = await getGlobalSlot();
-        if (currentSlot >= BigInt(slotLength)) {
-          break;
-        }
-
-        // Wait for 3 min
-        await new Promise((resolve) => setTimeout(resolve, 3 * 60 * 1000));
-        await fetchLastBlock(MINA_NODE_ENDPOINT);
+    }
+    while (true) {
+      let currentBlock = await getBlockchainLength();
+      if (currentBlock >= BigInt(blockLength)) {
+        break;
       }
+
+      // Wait for 3 min
+      await new Promise((resolve) => setTimeout(resolve, 3 * 60 * 1000));
+      await fetchLastBlock(MINA_NODE_ENDPOINT);
     }
   }
 
   /**
-   * Helper function to wait for SLOT_DURATION.
+   * Helper function to wait for BLOCK_DURATION.
    */
   async function waitForFinalize() {
     if (localTest) {
-      // Move the global slot forward
-      const { finalizeSlot } = GameState.unpack(zkapp.compressedState.get());
-      Local.setGlobalSlot(finalizeSlot);
+      // Move the global block forward
+      const { finalizeBlock } = GameState.unpack(zkapp.compressedState.get());
+      Local.setBlockchainLength(finalizeBlock);
     } else {
       // Wait for the game duration
       await fetchAccount({ publicKey: zkappAddress });
-      let { finalizeSlot } = GameState.unpack(zkapp.compressedState.get());
+      let { finalizeBlock } = GameState.unpack(zkapp.compressedState.get());
       while (true) {
-        let currentSlot = await getGlobalSlot();
-        if (currentSlot >= finalizeSlot.toBigint()) {
+        let currentBlock = await getBlockchainLength();
+        if (currentBlock >= finalizeBlock.toBigint()) {
           break;
         }
 
@@ -1033,11 +1027,11 @@ describe('Mastermind ZkApp Tests', () => {
         codeMasterSalt
       );
 
-      let { rewardAmount, finalizeSlot, turnCount, isSolved } =
+      let { rewardAmount, finalizeBlock, turnCount, isSolved } =
         GameState.unpack(zkapp.compressedState.get());
 
       expect(rewardAmount.toBigInt()).toEqual(BigInt(REWARD_AMOUNT));
-      expect(finalizeSlot.toBigint()).toEqual(0n);
+      expect(finalizeBlock.toBigint()).toEqual(0n);
       expect(turnCount.toBigInt()).toEqual(1n);
       expect(isSolved.toBoolean()).toEqual(false);
       expect(zkapp.codeMasterId.get()).toEqual(
@@ -1935,14 +1929,14 @@ describe('Mastermind ZkApp Tests', () => {
   });
 
   describe('Recovery if offchain recursion is not available', () => {
-    let slotNumber: bigint;
+    let blockNumber: bigint;
     beforeAll(async () => {
       if (testEnvironment === 'local') {
-        Local.setGlobalSlot(0);
+        Local.setBlockchainLength(UInt32.from(0));
       }
       secretCombination = [3, 1, 5, 2];
       await prepareNewGame();
-      slotNumber = await fetchSlotNumber();
+      blockNumber = await fetchBlockNumber();
     });
 
     beforeEach(() => {
@@ -1981,13 +1975,13 @@ describe('Mastermind ZkApp Tests', () => {
         zkappAddress
       );
       await submitGameProof(proof, codeMasterPubKey, false);
-      slotNumber = await fetchSlotNumber();
-      const { turnCount, lastPlayedSlot, isSolved } = GameState.unpack(
+      blockNumber = await fetchBlockNumber();
+      const { turnCount, lastPlayedBlock, isSolved } = GameState.unpack(
         zkapp.compressedState.get()
       );
       expect(turnCount.toBigInt()).toEqual(7n);
       expect(isSolved.toBoolean()).toEqual(false);
-      expect(lastPlayedSlot.toBigint()).toEqual(slotNumber);
+      expect(lastPlayedBlock.toBigint()).toEqual(blockNumber);
     });
 
     it('Code master wait more than PER_TURN_GAME_DURATION and rejected to make guess onchain', async () => {
@@ -2012,13 +2006,13 @@ describe('Mastermind ZkApp Tests', () => {
         zkappAddress
       );
       await submitGameProof(proof, codeBreakerPubKey, false);
-      slotNumber = await fetchSlotNumber();
-      const { turnCount, lastPlayedSlot, isSolved } = GameState.unpack(
+      blockNumber = await fetchBlockNumber();
+      const { turnCount, lastPlayedBlock, isSolved } = GameState.unpack(
         zkapp.compressedState.get()
       );
       expect(turnCount.toBigInt()).toEqual(11n);
       expect(isSolved.toBoolean()).toEqual(false);
-      expect(lastPlayedSlot.toBigint()).toEqual(slotNumber);
+      expect(lastPlayedBlock.toBigint()).toEqual(blockNumber);
     });
 
     it('Intruder tries to make guess and fails', async () => {
@@ -2154,7 +2148,7 @@ describe('Mastermind ZkApp Tests', () => {
   describe('Play it totally onchain with maximum duration', () => {
     beforeAll(async () => {
       if (testEnvironment === 'local') {
-        Local.setGlobalSlot(0);
+        Local.setBlockchainLength(UInt32.from(0));
       }
       secretCombination = [1, 2, 3, 4];
       await prepareNewGame();
