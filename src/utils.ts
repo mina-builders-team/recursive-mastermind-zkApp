@@ -5,7 +5,7 @@ export { Combination, Clue, GameState };
 
 /**
  * `Combination` is a class that represents a combination of digits for both the secret combination and the guesses.
- *  @param digits - An array of 4 unique digits between 1 and 7.
+ *  @param digits - An array of 4 unique digits from 0 to 7.
  *
  * @method `from` - Creates a new Combination instance from an array of numbers.
  * @method `toBits` - Converts the combination to a bit array.
@@ -203,7 +203,7 @@ class GameState extends Struct({
   isSolved: Bool,
 }) {
   static default = new this({
-    rewardAmount: UInt64.from(1e9),
+    rewardAmount: UInt64.from(1e10),
     finalizeSlot: UInt32.from(0),
     lastPlayedSlot: UInt32.from(0),
     turnCount: UInt8.from(0),
