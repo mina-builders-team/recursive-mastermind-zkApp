@@ -104,7 +104,7 @@ class MastermindZkApp extends SmartContract {
   /**
    * Asserts that the game is still ongoing. For internal use only.
    */
-  async assertPlayableState(
+  async assertGameInProgress(
     rewardAmount: UInt64,
     finalizeSlot: UInt32,
     isSolved: Bool
@@ -306,7 +306,7 @@ class MastermindZkApp extends SmartContract {
       this.compressedState.getAndRequireEquals()
     );
 
-    const lastPlayedSlot = await this.assertPlayableState(
+    const lastPlayedSlot = await this.assertGameInProgress(
       rewardAmount,
       finalizeSlot,
       isSolved
@@ -528,7 +528,7 @@ class MastermindZkApp extends SmartContract {
     let { rewardAmount, finalizeSlot, lastPlayedSlot, turnCount, isSolved } =
       GameState.unpack(this.compressedState.getAndRequireEquals());
 
-    const currentSlot = await this.assertPlayableState(
+    const currentSlot = await this.assertGameInProgress(
       rewardAmount,
       finalizeSlot,
       isSolved
@@ -590,7 +590,7 @@ class MastermindZkApp extends SmartContract {
     let { rewardAmount, finalizeSlot, lastPlayedSlot, turnCount, isSolved } =
       GameState.unpack(this.compressedState.getAndRequireEquals());
 
-    const currentSlot = await this.assertPlayableState(
+    const currentSlot = await this.assertGameInProgress(
       rewardAmount,
       finalizeSlot,
       isSolved
