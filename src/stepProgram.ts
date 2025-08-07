@@ -23,7 +23,7 @@ class PublicInputs extends Struct({
 }) {}
 
 /**
- * @param `codeMasterId` and `codeBreakerId` should be same with the on-chain values of players.
+ * @param `codeMasterPubKey` and `codeBreakerPubKey` should be same with the on-chain values of players.
  * @param `solutionHash` should also be same with the one on-chain value.
  * @param `lastCompressedGuess` and `lastcompressedClue` are the values obtained from the `makeGuess` and `giveClue` methods, respectively.
  * @param `turnCount` is the turn count of the game. Even turn counts represent the turns of code master and odd turn counts represent the turn of the code breaker.
@@ -31,8 +31,8 @@ class PublicInputs extends Struct({
  * @param `packedClueHistory` is a compressed data that keeps all clues given so far.
  */
 class PublicOutputs extends Struct({
-  codeMasterId: Field,
-  codeBreakerId: Field,
+  codeMasterPubKey: PublicKey,
+  codeBreakerPubKey: PublicKey,
   solutionHash: Field,
   lastCompressedGuess: Field,
   lastcompressedClue: Field,
@@ -76,8 +76,8 @@ const StepProgram = ZkProgram({
 
         return {
           publicOutput: new PublicOutputs({
-            codeMasterId: Poseidon.hash(authInputs.authPubKey.toFields()),
-            codeBreakerId: Field.from(0),
+            codeMasterPubKey: authInputs.authPubKey,
+            codeBreakerPubKey: PublicKey.empty(),
             solutionHash: Poseidon.hash([
               ...secretCombination.digits,
               salt,
@@ -125,12 +125,8 @@ const StepProgram = ZkProgram({
           'You have reached the maximum number of attempts!'
         );
 
-        const computedCodebreakerId = Poseidon.hash(
-          authInputs.authPubKey.toFields()
-        );
-
-        previousClue.publicOutput.codeBreakerId
-          .equals(computedCodebreakerId)
+        previousClue.publicOutput.codeBreakerPubKey
+          .equals(authInputs.authPubKey)
           .or(turnCount.equals(1))
           .assertTrue('You are not the codeBreaker of this game!');
 
@@ -155,7 +151,7 @@ const StepProgram = ZkProgram({
         return {
           publicOutput: new PublicOutputs({
             ...previousClue.publicOutput,
-            codeBreakerId: computedCodebreakerId,
+            codeBreakerPubKey: authInputs.authPubKey,
             lastCompressedGuess: guessCombination.compress(),
             turnCount: previousClue.publicOutput.turnCount.add(1),
             packedGuessHistory,
@@ -193,10 +189,11 @@ const StepProgram = ZkProgram({
           .and(turnCount.equals(0).not())
           .assertTrue('Please wait for the codeBreaker to make a guess!');
 
-        previousGuess.publicOutput.codeMasterId.assertEquals(
-          Poseidon.hash(authInputs.authPubKey.toFields()),
-          'Only the codeMaster of this game is allowed to give clue!'
-        );
+        previousGuess.publicOutput.codeMasterPubKey
+          .equals(authInputs.authPubKey)
+          .assertTrue(
+            'Only the codeMaster of this game is allowed to give clue!'
+          );
 
         previousGuess.publicOutput.solutionHash.assertEquals(
           Poseidon.hash([
