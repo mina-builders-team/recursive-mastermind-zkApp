@@ -481,8 +481,7 @@ class MastermindZkApp extends SmartContract {
       this.compressedState.getAndRequireEquals()
     );
 
-    Poseidon.hash(REFEREE_PUBKEY.toFields()).assertEquals(
-      Poseidon.hash(this.sender.getAndRequireSignature().toFields()),
+    REFEREE_PUBKEY.equals(this.sender.getAndRequireSignature()).assertTrue(
       'You are not the referee of this game!'
     );
 
