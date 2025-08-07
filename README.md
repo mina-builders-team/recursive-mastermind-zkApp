@@ -53,7 +53,7 @@
 
 - The game involves two players: a `Code Master` and a `Code Breaker`.
 - Inspired by [mastermind-noir](https://github.com/vezenovm/mastermind-noir), this version replaces colored pegs with a combination of 4 unique digits between `0` and `7`.
-- Current referee address is `B62qnbdBnbKMC1VJ9unXX9k8JfBNs4HPvo6t4rUWb43cG1bPcPEQCC5`.
+- Current Referee address is `B62qnbdBnbKMC1VJ9unXX9k8JfBNs4HPvo6t4rUWb43cG1bPcPEQCC5`.
 
 ## Game Rules
 
@@ -84,6 +84,32 @@
     - The blow is `6` in the fourth position.
 
 - The game continues with alternating guesses and clues until the Code Breaker achieves 4 hits and uncovers the secret combination or fails to do so within the **maximum allowed attempts = 7**.
+
+## Game Expenses & Payments
+
+| Who          | When / Method          | Amount (MINA)  | Recipient    | Purpose                                                         |
+| ------------ | ---------------------- | -------------- | ------------ | --------------------------------------------------------------- |
+| Code Master  | **Account deployment** | `1`            | Network      | New account creation fee.                                       |
+| Code Master  | **initGame ()**        | `1`            | **Referee**  | Up-front referee service fee.                                   |
+| Code Master  | **initGame ()**        | `rewardAmount` | **Contract** | Half of the symmetric reward pool.                              |
+| Code Breaker | **acceptGame ()**      | `2`            | **Referee**  | Up-front referee service fee (covers on-chain moderation risk). |
+| Code Breaker | **acceptGame ()**      | `rewardAmount` | **Contract** | Other half of the reward pools.                                 |
+
+> Both players spend **2 MINA** outside the reward pool:
+
+The symmetric stakes (`rewardAmount`) are returned **entirely** to the winner via `claimReward` or `submitGameProof`.  
+Referee fees are transferred immediately and are **non-refundable**, incentivising impartial arbitration.
+
+### Constants summary (see `constants.ts`)
+
+```ts
+const GAME_FEE = UInt64.from(2 * 1e9);
+const PER_TURN_GAME_DURATION = 2;
+const MAX_ATTEMPTS = 7;
+const REFEREE_PUBKEY = PublicKey.fromBase58(
+  'B62qnbdBnbKMC1VJ9unXX9k8JfBNs4HPvo6t4rUWb43cG1bPcPEQCC5'
+);
+```
 
 # Mastermind zkApp Structure
 
@@ -164,7 +190,7 @@ This method should be called **first** and can be called **only once** to initia
 
 > It is recommended to call this method with the same transaction that deploys the zkApp, due to lower fee and security reasons.
 
-- `initGame` is the first method called to set up the game, initialize the secret combination, define the reward amount for the challenge and the referee's public key. The first user to call this method with valid inputs will be designated as the Code Master.
+- `initGame` is the first method called to set up the game, initialize the secret combination, define the reward amount for the challenge and the Referee's public key. The first user to call this method with valid inputs will be designated as the Code Master.
 
 - This method takes five arguments:
 
@@ -225,16 +251,16 @@ This method should be called **first** and can be called **only once** to initia
 
 ### forfeitWin
 
-- This method should be called by the referee to penalize the player who misbehaves during the game. When the referee forfeits the game, the reward is transferred to the other player.
+- This method should be called by the Referee to penalize the player who misbehaves during the game. When the Referee forfeits the game, the reward is transferred to the other player.
 
-- The method can be called by the referee only, taking the `playerPubKey` as an argument. The method updates the contract states when the following conditions are met:
+- The method can be called by the Referee only, taking the `playerPubKey` as an argument. The method updates the contract states when the following conditions are met:
 
   - The game is accepted by the Code Breaker.
-  - The caller is the referee.
+  - The caller is the Referee.
   - The contract still has the reward (i.e., the claimReward method has not been called).
   - The provided `playerPubKey` is either the Code Master or the Code Breaker.
 
-> The current situation of the penalty mechanism is simple and trusted. It assumes that the referee is honest and will not penalize the player without a valid reason. In the future, we will explore more advanced mechanisms to penalize players without the need for trust of reputation.
+> The current situation of the penalty mechanism is simple and trusted. It assumes that the Referee is honest and will not penalize the player without a valid reason. In the future, we will explore more advanced mechanisms to penalize players without the need for trust of reputation.
 
 ### makeGuess
 
