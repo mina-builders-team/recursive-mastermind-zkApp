@@ -397,7 +397,7 @@ const functions = {
     const submitGameProofTx = await Mina.transaction(
       { sender: state.refereeKey!.toPublicKey(), fee },
       async () => {
-        await state.zkapp!.submitGameProof(proof, state.codeBreakerPubKey!);
+        await state.zkapp!.submitGameProof(proof);
       }
     );
 
