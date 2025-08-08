@@ -536,15 +536,15 @@ async function solveBenchmark(secret: number[], steps: Combination[]) {
   }
 
   log(
-    lastProof.publicOutput.codeBreakerId.toString(),
-    lastProof.publicOutput.codeMasterId.toString()
+    lastProof.publicOutput.codeBreakerPubKey.toBase58(),
+    lastProof.publicOutput.codeMasterPubKey.toBase58()
   );
 
   start = performance.now();
   const submitGameProofTx = await Mina.transaction(
     { sender: refereeKey.toPublicKey(), fee },
     async () => {
-      await zkapp.submitGameProof(lastProof, codeBreakerPubKey);
+      await zkapp.submitGameProof(lastProof);
     }
   );
 
