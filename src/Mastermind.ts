@@ -79,7 +79,7 @@ class MastermindZkApp extends SmartContract {
   @state(Field) codeBreakerId = State<Field>();
 
   /**
-   * `solutionHash` is the hash of the secret combination and salt.
+   * `solutionHash` is the hash of the secret combination, salt and the zkApp address.
    */
   @state(Field) solutionHash = State<Field>();
 
@@ -118,12 +118,14 @@ class MastermindZkApp extends SmartContract {
         'The game has already been finalized and the reward has been claimed!'
       );
 
+    // When forfeit win is called, rewardAmount is set to 0, but finalizeSlot is not
     finalizeSlot
       .equals(UInt32.zero)
       .not()
       .and(rewardAmount.equals(UInt64.zero))
       .assertFalse('Forfeit win has been called!');
 
+    // If the game has not been accepted by the codeBreaker yet, codeBreakerId is 0
     codeBreakerId
       .equals(Field.from(0))
       .assertFalse('The game has not been accepted by the codeBreaker yet!');
@@ -181,8 +183,11 @@ class MastermindZkApp extends SmartContract {
     const codeMasterPubKey = this.sender.getUnconstrained();
 
     const codeMasterUpdate = AccountUpdate.createSigned(codeMasterPubKey);
+    // Deposit the reward amount to the contract.
     codeMasterUpdate.send({ to: this.address, amount: rewardAmount });
 
+    // Pay the game fee to the referee.
+    // The fee is 1 MINA less than code breaker fee to balance the account creation fee paid by the code master.
     codeMasterUpdate.send({
       to: REFEREE_PUBKEY,
       amount: GAME_FEE.sub(UInt64.from(1e9)),
@@ -241,8 +246,10 @@ class MastermindZkApp extends SmartContract {
     const sender = this.sender.getUnconstrained();
 
     const codeBreakerUpdate = AccountUpdate.createSigned(sender);
+    // Deposit the reward amount to the contract.
     codeBreakerUpdate.send({ to: this.address, amount: rewardAmount });
 
+    // Pay the game fee to the referee.
     codeBreakerUpdate.send({
       to: REFEREE_PUBKEY,
       amount: GAME_FEE,
@@ -417,7 +424,7 @@ class MastermindZkApp extends SmartContract {
       .and(isFinalized)
       .and(isSolved.not());
 
-    // Code Master wins if the game is finalized and the codeBreaker has not solved the secret combination yet
+    // Code Master wins if the game is finalized and the codeBreaker has not solved the secret combination
     // Also if game is not accepted by the codeBreaker yet, the finalize slot is remains 0
     // So code master can use this method to reimburse the reward before the code breaker accepts the game
     const codeMasterWinByFinalize = isSolved.not().and(isFinalized);
@@ -474,8 +481,7 @@ class MastermindZkApp extends SmartContract {
       this.compressedState.getAndRequireEquals()
     );
 
-    Poseidon.hash(REFEREE_PUBKEY.toFields()).assertEquals(
-      Poseidon.hash(this.sender.getAndRequireSignature().toFields()),
+    REFEREE_PUBKEY.equals(this.sender.getAndRequireSignature()).assertTrue(
       'You are not the referee of this game!'
     );
 
