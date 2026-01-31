@@ -17,11 +17,9 @@ describe('Mastermind ZkProgram Tests', () => {
   let codeMasterKey: PrivateKey;
   let codeMasterPubKey: PublicKey;
   let codeMasterSalt: Field;
-  let codeMasterId: Field;
 
   let codeBreakerKey: PrivateKey;
   let codeBreakerPubKey: PublicKey;
-  let codeBreakerId: Field;
 
   let contractAddress: PublicKey;
 
@@ -46,7 +44,6 @@ describe('Mastermind ZkProgram Tests', () => {
     // Create codeMaster keys & derive ID
     codeMasterKey = PrivateKey.random();
     codeMasterPubKey = codeMasterKey.toPublicKey();
-    codeMasterId = Poseidon.hash(codeMasterPubKey.toFields());
 
     contractAddress = PrivateKey.random().toPublicKey();
 
@@ -66,7 +63,6 @@ describe('Mastermind ZkProgram Tests', () => {
     // Create codeBreaker keys & derive ID
     codeBreakerKey = PrivateKey.random();
     codeBreakerPubKey = codeBreakerKey.toPublicKey();
-    codeBreakerId = Poseidon.hash(codeBreakerPubKey.toFields());
   });
 
   async function expectCreateGameToFail(
@@ -197,16 +193,16 @@ describe('Mastermind ZkProgram Tests', () => {
 
   function expectedPublicOutput(
     _publicOutput: PublicOutputs = lastProof.publicOutput,
-    _codeBreakerId: Field = codeBreakerId,
-    _codeMasterId: Field = codeMasterId,
+    _codeBreakerPubKey: PublicKey = codeBreakerPubKey,
+    _codeMasterPubKey: PublicKey = codeMasterPubKey,
     _lastCompressedGuess: Field = lastGuess.compress(),
     _lastcompressedClue: Field = lastClue.compress(),
     _packedClueHistory: Field = lastClueHistory,
     _packedGuessHistory: Field = lastGuessHistory,
     _turnCount: UInt8 = UInt8.from(guessCount + clueCount + 1)
   ) {
-    expect(_publicOutput.codeBreakerId).toEqual(_codeBreakerId);
-    expect(_publicOutput.codeMasterId).toEqual(_codeMasterId);
+    expect(_publicOutput.codeBreakerPubKey).toEqual(_codeBreakerPubKey);
+    expect(_publicOutput.codeMasterPubKey).toEqual(_codeMasterPubKey);
     expect(_publicOutput.lastCompressedGuess).toEqual(_lastCompressedGuess);
     expect(_publicOutput.lastcompressedClue).toEqual(_lastcompressedClue);
     expect(_publicOutput.packedClueHistory).toEqual(_packedClueHistory);
@@ -282,7 +278,7 @@ describe('Mastermind ZkProgram Tests', () => {
 
       expectedPublicOutput(
         undefined,
-        Field.from(0),
+        PublicKey.empty(),
         undefined,
         Field.from(0),
         Field.from(0)
@@ -809,7 +805,7 @@ describe('Mastermind ZkProgram Tests', () => {
 
       expectedPublicOutput(
         undefined,
-        Field.from(0),
+        PublicKey.empty(),
         undefined,
         Field.from(0),
         Field.from(0)

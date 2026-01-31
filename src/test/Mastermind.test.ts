@@ -344,7 +344,7 @@ describe('Mastermind ZkApp Tests', () => {
       const tx = await Mina.transaction(
         { sender: codeMasterPubKey, fee },
         async () => {
-          await zkapp.submitGameProof(proof, winnerPubKey);
+          await zkapp.submitGameProof(proof);
         }
       );
 
@@ -362,15 +362,15 @@ describe('Mastermind ZkApp Tests', () => {
    */
   async function submitGameProof(
     proof: StepProgramProof,
-    winnerPubKey: PublicKey,
+    pubkeyToCheck: PublicKey,
     shouldClaim: boolean
   ) {
-    await fetchAccounts([winnerPubKey, zkappAddress]);
-    const winnerBalance = Mina.getBalance(winnerPubKey);
+    await fetchAccounts([pubkeyToCheck, zkappAddress]);
+    const balance = Mina.getBalance(pubkeyToCheck);
     const submitGameProofTx = await Mina.transaction(
       { sender: refereePubKey, fee },
       async () => {
-        await zkapp.submitGameProof(proof, winnerPubKey ?? codeMasterPubKey);
+        await zkapp.submitGameProof(proof);
       }
     );
 
@@ -385,10 +385,10 @@ describe('Mastermind ZkApp Tests', () => {
       shouldClaim ? 0 : 2 * REWARD_AMOUNT
     );
 
-    const winnerNewBalance = Mina.getBalance(winnerPubKey);
-    expect(
-      Number(winnerNewBalance.toBigInt() - winnerBalance.toBigInt())
-    ).toEqual(shouldClaim ? 2 * REWARD_AMOUNT : 0);
+    const newBalance = Mina.getBalance(pubkeyToCheck);
+    expect(Number(newBalance.toBigInt() - balance.toBigInt())).toEqual(
+      shouldClaim ? 2 * REWARD_AMOUNT : 0
+    );
   }
 
   /**
@@ -1079,9 +1079,7 @@ describe('Mastermind ZkApp Tests', () => {
       expect(finalizeSlot.toBigint()).toEqual(0n);
       expect(turnCount.toBigInt()).toEqual(1n);
       expect(isSolved.toBoolean()).toEqual(false);
-      expect(zkapp.codeMasterId.get()).toEqual(
-        Poseidon.hash(codeMasterPubKey.toFields())
-      );
+      expect(zkapp.codeMasterPubKey.get()).toEqual(codeMasterPubKey);
 
       expect(zkapp.solutionHash.get()).toEqual(
         Poseidon.hash([
@@ -1093,7 +1091,7 @@ describe('Mastermind ZkApp Tests', () => {
 
       // All other fields should be 0
       expect(zkapp.packedGuessHistory.get()).toEqual(Field(0));
-      expect(zkapp.codeBreakerId.get()).toEqual(Field(0));
+      expect(zkapp.codeBreakerPubKey.get()).toEqual(PublicKey.empty());
       expect(zkapp.packedClueHistory.get()).toEqual(Field(0));
 
       // Contract should be funded with the reward amount
@@ -1176,10 +1174,8 @@ describe('Mastermind ZkApp Tests', () => {
     it('Accept the game successfully', async () => {
       await acceptGame(codeBreakerPubKey, codeBreakerKey);
 
-      const codeBreakerId = zkapp.codeBreakerId.get();
-      expect(codeBreakerId.toBigInt()).toEqual(
-        Poseidon.hash(codeBreakerPubKey.toFields()).toBigInt()
-      );
+      const codeBreaker = zkapp.codeBreakerPubKey.get();
+      expect(codeBreaker).toEqual(codeBreakerPubKey);
     });
 
     it('Reject accepting the game again', async () => {
@@ -1217,8 +1213,8 @@ describe('Mastermind ZkApp Tests', () => {
       await expectClaimRewardToFail(intruderPubKey, intruderKey, expectedMsg);
     });
 
-    it('Submit with correct game proof and wrong winner pubkey', async () => {
-      await submitGameProof(completedProof, codeMasterPubKey, false);
+    it('Submit with correct game proof', async () => {
+      await submitGameProof(completedProof, codeBreakerPubKey, true);
 
       const { turnCount, isSolved } = GameState.unpack(
         zkapp.compressedState.get()
@@ -1228,9 +1224,7 @@ describe('Mastermind ZkApp Tests', () => {
         completedProof.publicOutput.turnCount.toBigInt()
       );
       expect(isSolved.toBoolean()).toEqual(true);
-      expect(zkapp.codeBreakerId.get()).toEqual(
-        Poseidon.hash(codeBreakerPubKey.toFields())
-      );
+      expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
       expectedGuessHistory = Combination.updateHistory(
         Combination.from(secretCombination),
@@ -1267,19 +1261,6 @@ describe('Mastermind ZkApp Tests', () => {
     });
 
     it('Reject submitting the same proof again', async () => {
-      const expectedMsg = 'The game secret has already been solved!';
-      await expectProofSubmissionToFail(
-        completedProof,
-        codeBreakerPubKey,
-        expectedMsg
-      );
-    });
-
-    it('Claim reward successfully', async () => {
-      await claimReward(codeBreakerPubKey, codeBreakerKey);
-    });
-
-    it('Reject submitting after reward claim', async () => {
       const expectedMsg =
         'The game has already been finalized and the reward has been claimed!';
       await expectProofSubmissionToFail(
@@ -1346,21 +1327,18 @@ describe('Mastermind ZkApp Tests', () => {
       );
     });
 
-    it('Submit with correct game proof with wrong winner', async () => {
-      await submitGameProof(completedProof, codeMasterPubKey, false);
+    it('Submit with complete game proof', async () => {
+      await submitGameProof(completedProof, codeBreakerPubKey, true);
     });
 
     it('Reject submitting the same proof again', async () => {
-      const expectedMsg = 'The game secret has already been solved!';
+      const expectedMsg =
+        'The game has already been finalized and the reward has been claimed!';
       await expectProofSubmissionToFail(
         partialProof,
         codeBreakerPubKey,
         expectedMsg
       );
-    });
-
-    it('Claim reward', async () => {
-      await claimReward(codeBreakerPubKey, codeBreakerKey);
     });
 
     it('Reject forfeitWin method call after finalization', async () => {
@@ -1580,9 +1558,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(false);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(3n);
 
@@ -1617,9 +1593,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(true);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(3n);
       });
@@ -1635,7 +1609,7 @@ describe('Mastermind ZkApp Tests', () => {
           zkappAddress
         );
 
-        await submitGameProof(proof, codeMasterPubKey, false);
+        await submitGameProof(proof, codeBreakerPubKey, true);
 
         const { turnCount, isSolved } = GameState.unpack(
           zkapp.compressedState.get()
@@ -1648,9 +1622,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(true);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(3n);
 
@@ -1687,9 +1659,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(false);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(9n);
 
@@ -1724,9 +1694,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(true);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(11n);
       });
@@ -1742,7 +1710,7 @@ describe('Mastermind ZkApp Tests', () => {
           zkappAddress
         );
 
-        await submitGameProof(proof, codeMasterPubKey, false);
+        await submitGameProof(proof, codeBreakerPubKey, true);
 
         const { turnCount, isSolved } = GameState.unpack(
           zkapp.compressedState.get()
@@ -1755,9 +1723,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(true);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(7n);
 
@@ -1794,9 +1760,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(false);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(BigInt(2 * MAX_ATTEMPTS + 1));
       });
@@ -1812,7 +1776,7 @@ describe('Mastermind ZkApp Tests', () => {
           zkappAddress
         );
 
-        await submitGameProof(proof, codeBreakerPubKey, false);
+        await submitGameProof(proof, codeMasterPubKey, true);
 
         const { turnCount, isSolved } = GameState.unpack(
           zkapp.compressedState.get()
@@ -1825,9 +1789,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(false);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(BigInt(2 * MAX_ATTEMPTS + 1));
 
@@ -1836,8 +1798,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeBreakerKey,
           'You are not the winner of this game!'
         );
-
-        await claimReward(codeMasterPubKey, codeMasterKey);
       });
 
       it('MAX_ATTEMPTS round solved claim on submit', async () => {
@@ -1864,9 +1824,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(true);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(BigInt(2 * MAX_ATTEMPTS + 1));
       });
@@ -1882,7 +1840,7 @@ describe('Mastermind ZkApp Tests', () => {
           zkappAddress
         );
 
-        await submitGameProof(proof, codeMasterPubKey, false);
+        await submitGameProof(proof, codeBreakerPubKey, true);
 
         const { turnCount, isSolved } = GameState.unpack(
           zkapp.compressedState.get()
@@ -1895,9 +1853,7 @@ describe('Mastermind ZkApp Tests', () => {
           proof.publicOutput.turnCount.toBigInt()
         );
         expect(isSolved.toBoolean()).toEqual(true);
-        expect(zkapp.codeBreakerId.get()).toEqual(
-          Poseidon.hash(codeBreakerPubKey.toFields())
-        );
+        expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
 
         expect(turnCount.toBigInt()).toEqual(BigInt(2 * MAX_ATTEMPTS + 1));
 
@@ -1906,8 +1862,6 @@ describe('Mastermind ZkApp Tests', () => {
           codeMasterKey,
           'You are not the winner of this game!'
         );
-
-        await claimReward(codeBreakerPubKey, codeBreakerKey);
       });
     });
   });
@@ -2042,9 +1996,7 @@ describe('Mastermind ZkApp Tests', () => {
           Field(0)
         )
       );
-      expect(zkapp.codeBreakerId.get()).toEqual(
-        Poseidon.hash(codeBreakerPubKey.toFields())
-      );
+      expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
       expect(zkapp.packedClueHistory.get()).toEqual(Field(0));
     });
 
@@ -2184,9 +2136,7 @@ describe('Mastermind ZkApp Tests', () => {
       );
       expect(turnCount.toBigInt()).toEqual(14n);
       expect(isSolved.toBoolean()).toEqual(false);
-      expect(zkapp.codeBreakerId.get()).toEqual(
-        Poseidon.hash(codeBreakerPubKey.toFields())
-      );
+      expect(zkapp.codeBreakerPubKey.get()).toEqual(codeBreakerPubKey);
     });
 
     it('Code master should be able to continue game with giveClue and win', async () => {
